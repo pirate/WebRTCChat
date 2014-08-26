@@ -20,6 +20,9 @@
       #messageTextBox {
         width: 80%;
       }
+      .head {
+        display: inline;
+      }
       .secure-icon {
         display: inline;
         width: 14px;
@@ -41,6 +44,8 @@
       .msg {
         display: inline;
       }
+      #meIcon{height:20px; width:auto; padding-right:2px; display:none;}
+      #themIcon{height:20px; width:auto; padding-left:2px; padding-bottom: 2px; display:none;}
     </style>
 </head>
 <body>
@@ -49,7 +54,7 @@
 
 <div>
   <fieldset class="well">
-    <p class="head muted">PGP Encrypted, Secure, Serverless WebRTC chat.  Your messages are sent from your browser directly to your partner's browser.</p>
+    <p class="head muted"><img id="meIcon"><<PGP>PGP><img id="themIcon"> :: </p>Serverless WebRTC chat.  Your messages are sent from your browser directly to your partner's browser.</p>
     <div class="text-info" id="chatlog"></div>
   </fieldset>
   <form class="form-inline" onSubmit="return sendChatboxMessage()" action="">
@@ -139,6 +144,9 @@ function displayChatReady() {
     $('#waitForConnection').remove();
     $('.modal-backdrop').remove();
     document.title = WebRTCChat.roomName + ":" + document.title;
+    urls = ['img/unlock.png', 'img/lock.png']
+    $('#meIcon').attr('src', urls[1*WebRTCChat.usePGP]).css('display','inline');
+    $('#themIcon').attr('src', urls[1*WebRTCChat.theyUsePGP]).css('display','inline');
     $('#messageTextBox').focus();
     if (WebRTCChat.usePGP && !WebRTCChat.theyUsePGP) WebRTCChat.writeToChatLog("WARNING: You chose to enable PGP, but your chat partner did not.  Your messages will be sent encrypted but your partner's responses will come back in plain text.", "text-warning");
     else if (!WebRTCChat.usePGP) WebRTCChat.writeToChatLog("WARNING: You did not choose to enable PGP.  Your messages will be sent in plain text.", "text-warning");

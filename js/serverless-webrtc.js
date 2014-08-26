@@ -17,15 +17,87 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
     self.pgpStrength = 512;
     self.sendTyping = true;
 
+    self.PGPdecrypt = function(message) {
+        pgpMessage = openpgp.message.readArmored(message);
+        return openpgp.decryptMessage(self.myKeyPair.key, pgpMessage);
+    }
+
+    self.PGPencrypt = function(message) {
+        return openpgp.encryptMessage(self.theirPubKey.keys, message);
+    }
+
 /* WebRTC + PGP CHAT CONNECTION CODE */
+
+    /* THE HOST (initiated the chat) */
+
+    self.hostChat = function(offer_callback, ready_callback) {
+        var hostConnection = new RTCPeerConnection(self.cfg, self.con);
+        self.initConnection(hostConnection, offer_callback);
+        var hostChannel = hostConnection.createDataChannel('test', {reliable:true});
+        self.initChannel(hostChannel, ready_callback);
+        
+        console.log("Creating RTC Chat Host Offer...");
+        hostConnection.createOffer(self.handleDescription, self.handleDescriptionFailure);
+        // copy paste this offer to all clients who want to join
+        // they paste their answer back, which goes into handleAnswerFromClient
+    }
+
+    self.handleAnswerFromClient = function(answer) {
+        if (answer.pgpKey) {
+            self.theirPubKey = openpgp.key.readArmored(answer.pgpKey);
+            console.log("Received Chat Partner's Public PGP Key: ", answer.pgpKey);
+        }
+        self.theyUsePGP = Boolean(answer.encryption);
+
+        var answerDesc = new RTCSessionDescription(answer.rtc);
+        console.log("Received Chat RTC Join Answer: ", answerDesc);
+        self.activeConnection.setRemoteDescription(answerDesc);
+
+        writeToChatLog("Started hosting a chat.", "text-success");
+
+        // hostChannel.onopen will trigger once the connection is complete (enabling the chat window)
+    }
+
+    /* THE JOINEE (joins an existing chat) */
+
+    self.joinChat = function(offer, answer_callback, ready_callback) {
+        var clientConnection = new RTCPeerConnection(cfg, con);
+        self.initConnection(clientConnection, answer_callback);
+
+        clientConnection.ondatachannel = function (e) {                                     // once client receives a good data channel from the host
+            // Chrome sends event, FF sends raw channel
+            var clientChannel = e.channel || e;
+            self.initChannel(clientChannel, ready_callback);
+            writeToChatLog("Joined a chat.", "text-success");
+            // clientChannel.onopen will then trigger once the connection is complete (enabling the chat window)
+        };
+
+        if (offer.pgpKey) {
+            self.theirPubKey = openpgp.key.readArmored(offer.pgpKey);
+            console.log("Received Chat Partner's Public PGP Key: ", offer.pgpKey);
+        }
+        self.theyUsePGP = Boolean(offer.encryption);
+        self.roomName = offer.roomName;
+
+        var offerDesc = new RTCSessionDescription(offer.rtc);
+        console.log("Received Chat RTC Host Offer: ", offerDesc);
+        self.activeConnection.setRemoteDescription(offerDesc);
+        
+        console.log("Answering Chat Host Offer...");
+        self.activeConnection.createAnswer(self.handleDescription, self.handleDescriptionFailure);
+
+        // ondatachannel triggers once the client has accepted our answer ^
+    }
 
     self.initConnection = function(conn, callback) {
         self.activeConnection = conn;
         self.myKeyPair = openpgp.generateKeyPair({numBits:self.pgpStrength,userId:"1",passphrase:"",unlocked:true});
+        // these dont really do anything
         conn.onconnection                   = function (state) {console.info('Chat connection complete: ', event);}
         conn.onsignalingstatechange         = function (state) {console.info('Signaling state change: ', state); if (self.activeConnection.iceConnectionState == "disconnected") self.writeToChatLog("Chat partner disconnected.", "text-warning");}
         conn.oniceconnectionstatechange     = function (state) {console.info('Signaling ICE connection state change: ', state); if (self.activeConnection.iceConnectionState == "disconnected") self.writeToChatLog("Chat partner disconnected.", "text-warning");}
         conn.onicegatheringstatechange      = function (state) {console.info('Signaling ICE setup state change: ', state);}
+        //this is the important one
         conn.onicecandidate = function (event) {
             // when browser has determined how to connect, generate offer or answer with ICE connection details and PGP public key
             if (event.candidate == null) {
@@ -61,6 +133,8 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
         self.activeConnection.onfailure("Invalid or expired chat offer. Please try again.")
     }
 
+    // messaging functions
+
     self.sendTypingMessage = function() {
         self.activeChannel.send(JSON.stringify({message:null,typing:true,encrypted:false}));
     }
@@ -92,87 +166,16 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
         }
     }
 
-    self.PGPdecrypt = function(message) {
-        pgpMessage = openpgp.message.readArmored(message);
-        return openpgp.decryptMessage(self.myKeyPair.key, pgpMessage);
-    }
-
-    self.PGPencrypt = function(message) {
-        return openpgp.encryptMessage(self.theirPubKey.keys, message);
-    }
-
-/* THE HOST (initiated the chat) */
-
-    self.hostChat = function(offer_callback, ready_callback) {
-        var hostConnection = new RTCPeerConnection(self.cfg, self.con);
-        self.initConnection(hostConnection, offer_callback);
-        var hostChannel = hostConnection.createDataChannel('test', {reliable:true});
-        self.initChannel(hostChannel, ready_callback);
-        
-        console.log("Creating RTC Chat Host Offer...");
-        hostConnection.createOffer(self.handleDescription, self.handleDescriptionFailure);
-        // copy paste this offer to all clients who want to join
-        // they paste their answer back, which goes into handleAnswerFromClient
-    }
-
-    self.handleAnswerFromClient = function(answer) {
-        if (answer.pgpKey) {
-            self.theirPubKey = openpgp.key.readArmored(answer.pgpKey);
-            console.log("Received Chat Partner's Public PGP Key: ", answer.pgpKey);
-        }
-        self.theyUsePGP = Boolean(answer.encryption);
-
-        var answerDesc = new RTCSessionDescription(answer.rtc);
-        console.log("Received Chat RTC Join Answer: ", answerDesc);
-        self.activeConnection.setRemoteDescription(answerDesc);
-
-        writeToChatLog("Started hosting a chat.", "text-success");
-
-        // hostChannel.onopen will trigger once the connection is complete (enabling the chat window)
-    }
-
-/* THE JOINEE (joins an existing chat) */
-
-    self.joinChat = function(offer, answer_callback, ready_callback) {
-        var clientConnection = new RTCPeerConnection(cfg, con);
-        self.initConnection(clientConnection, answer_callback);
-
-        clientConnection.ondatachannel = function (e) {                                     // once client receives a good data channel from the host
-            // Chrome sends event, FF sends raw channel
-            var clientChannel = e.channel || e;
-            self.initChannel(clientChannel, ready_callback);
-            writeToChatLog("Joined a chat.", "text-success");
-            // clientChannel.onopen will then trigger once the connection is complete (enabling the chat window)
-        };
-
-        if (offer.pgpKey) {
-            self.theirPubKey = openpgp.key.readArmored(offer.pgpKey);
-            console.log("Received Chat Partner's Public PGP Key: ", offer.pgpKey);
-        }
-        self.theyUsePGP = Boolean(offer.encryption);
-        self.roomName = offer.roomName;
-
-        var offerDesc = new RTCSessionDescription(offer.rtc);
-        console.log("Received Chat RTC Host Offer: ", offerDesc);
-        self.activeConnection.setRemoteDescription(offerDesc);
-        
-        console.log("Answering Chat Host Offer...");
-        self.activeConnection.createAnswer(self.handleDescription, self.handleDescriptionFailure);
-
-        // ondatachannel triggers once the client has accepted our answer ^
-    }
-
 /* Utilities */
 
-    self.writeToChatLog = function(message, message_type, secure) {
-        console.log("-> ", message, message_type, secure);
-    }
+    // set these to your own functions using WebRTCChat.writeToChatLog = function(...) {...}
 
-    self.displayPartnerTyping = function() {
-        console.log("-> Typing...")
-    }
+    self.writeToChatLog = function(message, message_type, secure) {console.log("-> ", message, message_type, secure);}
 
-    self.lzw_encode = function(s) {
+    self.displayPartnerTyping = function() {console.log("-> Typing...");}
+
+    self.compress = function(s) {
+        //lzw_encode
         var dict = {};
         var data = (s + "").split("");
         var out = [];
@@ -198,7 +201,8 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
         return out.join("");
     }
 
-    self.lzw_decode = function(s) {
+    self.decompress = function(s) {
+        // lzw_decode
         var dict = {};
         var data = (s + "").split("");
         var currChar = data[0];
