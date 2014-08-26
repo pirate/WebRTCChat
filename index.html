@@ -15,8 +15,7 @@
       #chatlog {
           overflow:auto;
           width: 100%;
-          height: 80%;
-          /*height: 350px;*/
+          height: 350px;
       }
       #messageTextBox {
         width: 80%;
@@ -112,5 +111,118 @@
 <script src="js/openpgp.js"></script>
 <script src="js/serverless-webrtc.js"></script>
 <script src="js/file-transfer.js"></script>
+<script type="text/javascript">
+window.WebRTCChat = new WebRTCChat();
+
+/* DOM INTERACTION CODE */
+
+$('#showLocalOffer').modal('hide');
+$('#getRemoteAnswer').modal('hide');
+$('#waitForConnection').modal('hide');
+$('#createOrJoin').modal('show');
+
+/* used both when joining and hosting */
+
+function getTimestamp () {
+    var totalSec = new Date().getTime() / 1000;
+    var hours = parseInt(totalSec / 3600) % 24;
+    var minutes = parseInt(totalSec / 60) % 60;
+    var seconds = parseInt(totalSec % 60);
+
+    return (hours < 10 ? "0" + hours : hours) + ":" +
+           (minutes < 10 ? "0" + minutes : minutes) + ":" +
+           (seconds  < 10 ? "0" + seconds : seconds);
+}
+
+function displayChatReady() {
+    $('#joinChat').remove();
+    $('#waitForConnection').remove();
+    $('.modal-backdrop').remove();
+    document.title = WebRTCChat.roomName + ":" + document.title;
+    $('#messageTextBox').focus();
+    if (WebRTCChat.usePGP && !WebRTCChat.theyUsePGP) WebRTCChat.writeToChatLog("WARNING: You chose to enable PGP, but your chat partner did not.  Your messages will be sent encrypted but your partner's responses will come back in plain text.", "text-warning");
+    else if (!WebRTCChat.usePGP) WebRTCChat.writeToChatLog("WARNING: You did not choose to enable PGP.  Your messages will be sent in plain text.", "text-warning");
+    $('#sendMessageBtn').addClass('btn-primary');
+}
+
+function sendChatboxMessage() {
+    if ($('#messageTextBox').val()) {
+        WebRTCChat.sendMessage($('#messageTextBox').val(), WebRTCChat.usePGP);
+        $('#messageTextBox').val('')
+    }
+    return false;
+}
+
+function writeToChatLog(message, message_type, secure) {
+    $('.typing').remove();
+    var img;
+    if (WebRTCChat.usePGP == WebRTCChat.theyUsePGP || secure == undefined) img = '';
+    else if (secure) img = '<img class="secure-icon" src="img/lock.png" width="10px">';
+    else if (!secure) img = '<img class="insecure-icon" src="img/unlock.png" width="10px">';
+
+    document.getElementById('chatlog').innerHTML += img + '<p class="msg ' + message_type + '">[' + getTimestamp() + '] ' + message + '</p><br>';
+    $('#chatlog').scrollTop($('#chatlog')[0].scrollHeight);
+}
+
+function displayPartnerTyping() {
+    if (!$('.typing').length) document.getElementById('chatlog').innerHTML += '<p class=\"text-info\ typing">' + "[" + getTimestamp() + "] ...</p>";
+    else $('.typing').html("[" + getTimestamp() + "] ...");
+    setTimeout(function() {
+      $('.typing').remove();
+    }, 2000);
+}
+
+window.WebRTCChat.writeToChatLog = writeToChatLog;
+window.WebRTCChat.displayPartnerTyping = displayPartnerTyping;
+
+/* User interactions to host a chat */
+
+$('#createBtn').click(function() {
+    WebRTCChat.pgpStrength = parseInt($('#pgpStrength').val()) || 512;
+    WebRTCChat.usePGP = Boolean(parseInt($('#pgpStrength').val()));
+    WebRTCChat.sendTyping = $('#sendTyping').is(':checked');
+    WebRTCChat.roomName = $('#roomName').val();
+    $('#hostChat').modal('show');
+    WebRTCChat.hostChat(function (offer_desc) {
+        $('#offer').html(offer_desc);
+        $('#answer').keyup(function(e) {
+            if ($('#answer').val()) {
+                var answer = JSON.parse($('#answer').val());
+                $('#hostChat').remove();
+                $('.modal-backdrop').remove();
+                $('#waitForConnection').modal('show');
+                WebRTCChat.handleAnswerFromClient(answer);
+            }
+        });
+    }, displayChatReady);
+});
+
+/* User interactions to join a chat  */
+
+$('#joinBtn').click(function() {
+    WebRTCChat.pgpStrength = parseInt($('#pgpStrength').val()) || 512;
+    WebRTCChat.usePGP = Boolean(parseInt($('#pgpStrength').val()));
+    WebRTCChat.sendTyping = $('#sendTyping').is(':checked');
+    $('#joinChat').modal('show');
+    $('#offerFromHost').keyup(function(e) {
+        if ($('#offerFromHost').val()) {
+            var offer = JSON.parse($('#offerFromHost').val());
+            WebRTCChat.joinChat(offer, function(answer_desc) {
+                $('#answerToHost').html(answer_desc);
+            }, displayChatReady);
+        }
+    });
+});
+
+$('#messageTextBox').keydown(function() {
+    if (WebRTCChat.sendTyping) {
+        WebRTCChat.sendTypingMessage();
+        WebRTCChat.sendTyping = false;
+        setTimeout(function() {
+            WebRTCChat.sendTyping = true;
+        }, 1000);
+    }
+});
+</script>
 </body>
 </html>
