@@ -1,0 +1,116 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>PGP-Encrypted Chat over WebRTC</title>
+    <script src="js/adapter.js"></script>
+    <script src="js/jquery-2.0.0.js"></script>
+    <script src="js/bootstrap.js"></script>
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/bootstrap-responsive.css" rel="stylesheet">
+    <style>
+      body {
+        height: 100%;
+      }
+      #chatlog {
+          overflow:auto;
+          width: 100%;
+          height: 80%;
+          /*height: 350px;*/
+      }
+      #messageTextBox {
+        width: 80%;
+      }
+      .secure-icon {
+        display: inline;
+        width: 14px;
+        padding-bottom: 3px;
+        padding-right: 2px;
+      }
+      .insecure-icon {
+        display: inline;
+        width: 14px;
+        padding-bottom: 6px;
+        padding-right: 2px;
+      }
+      .sent:before {
+        content: "Me: ";
+      }
+      .recv:before {
+        content: "-> : ";
+      }
+      .msg {
+        display: inline;
+      }
+    </style>
+</head>
+<body>
+
+<!--Chat Features-->
+
+<div>
+  <fieldset class="well">
+    <p class="head muted">PGP Encrypted, Secure, Serverless WebRTC chat.  Your messages are sent from your browser directly to your partner's browser.</p>
+    <div class="text-info" id="chatlog"></div>
+  </fieldset>
+  <form class="form-inline" onSubmit="return sendChatboxMessage()" action="">
+    <input type="text" id="messageTextBox" placeholder="Type your message here">
+    <button type="submit" id="sendMessageBtn" class="btn">Send Message</button>
+  </form>
+</div>
+
+<!--Modals for connecting-->
+
+<div class="modal" id="hostChat" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="title1" aria-hidden="true" hidden>
+  <div class="modal-header"><h3 id="title1">Send your local offer to someone else</h3></div>
+  <div class="modal-body">
+    Here's your "offer" -- it tells someone else how to connect to you.  Send the whole thing to them, for example in an instant message or e-mail.
+    <br/>
+    <textarea class="input-large offer" id="offer" name="offer" rows="10" cols="100" readonly="true"></textarea>
+    <textarea class="input-large answer" id="answer" name="answer" rows="10" cols="100" placeholder="Then paste their answer here, and the chat will start."></textarea>
+  </div>
+</div>
+
+<div class="modal" id="joinChat" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="title2" aria-hidden="true" hidden>
+  <div class="modal-header"><h3 id="title2">Paste the "offer" you received</h3></div>
+  <div class="modal-body">
+    <div id="offer-string">The person who created the room will send you an "offer" string -- paste it here.</div>
+    <br/>
+    <textarea class="input-large offer" id="offerFromHost" name="offerFromHost" rows="10" cols="100"></textarea>
+    <textarea class="input-large answer" id="answerToHost" name="answerToHost" rows="10" cols="100" placeholder="Next, send them the answer that appears here." readonly="true"></textarea>
+  </div>
+  <div class="modal-footer">This box will dissapear once you are connected.</div>
+</div>
+
+<div class="modal" id="waitForConnection" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="title3" aria-hidden="true" hidden>
+  <div class="title3"><h3 id="myModalLabel">Waiting for connection</h3></div>
+  <div class="modal-body">This dialog will disappear when a connection is made.</div>
+  <div class="spinner" align="center"><img src="img/spinner.gif"></img></div>
+</div>
+
+<div class="modal" id="createOrJoin" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="title4" aria-hidden="true">
+  <div class="modal-header"><h3 id="title4">Create or join a room?</h3></div>
+  <div class="modal-body">
+    <label>Room Name: <input id="roomName" placeholder="Chat Room"></input></label>
+    <label>PGP Strength: 
+    <select style="margin:0px;" id="pgpStrength"/>
+        <option value="0">Off</option> 
+        <option value="512" selected="selected">512 Bit</option> 
+        <option value="1024">1024 Bit</option>
+        <option value="2048">2048 Bit (Slow)</option>
+    </select></label>
+    <label style="color:grey;">Save PGP keys locally:  <input style="margin:0px;" id="pgpKeySave" type="checkbox" disabled/></label>
+    <label>Send typing notifications:                  <input style="margin:0px;" id="sendTyping" type="checkbox" checked="true"/></label><br>
+    <button class="btn btn-primary" id="createBtn" data-dismiss="modal" aria-hidden="true">Create a New Chat</button>
+    <button class="btn" style="text-align:right;" id="joinBtn" data-dismiss="modal" aria-hidden="true">Join an existing chat</button>
+  </div>
+  <div class="modal-footer">
+    
+  </div>
+</div>
+
+<script src="js/openpgp.js"></script>
+<script src="js/serverless-webrtc.js"></script>
+<script src="js/file-transfer.js"></script>
+</body>
+</html>

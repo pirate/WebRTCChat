@@ -1,262 +1,262 @@
-/* See also:
-    http://www.html5rocks.com/en/tutorials/webrtc/basics/
-    https://code.google.com/p/webrtc-samples/source/browse/trunk/apprtc/index.html
+/* WebRTC setup for broser-to-browser connection */
+window.cfg = {'iceServers':[]}; //{"url":"stun:23.21.150.121"}
+window.con = {'optional':  [{'DtlsSrtpKeyAgreement': true}] };
+window.activeChannel;
+window.activeConnection;
 
-    https://webrtc-demos.appspot.com/html/pc1.html
-*/
+/* OpenPGP setup for chat encryption */
+window.myKeyPair = null;
+window.theirPubKey = "";
+window.readystate = false;
+window.usePGP = true;
+window.theyUsePGP = true;
+window.pgpStrength = 512;
+window.sendTyping = true;
 
-var cfg = {"iceServers":[{"url":"stun:23.21.150.121"}]},
-    con = { 'optional': [{'DtlsSrtpKeyAgreement': true}] };
-
-/* THIS IS ALICE, THE CALLER/SENDER */
-
-var pc1 = new RTCPeerConnection(cfg, con),
-    dc1 = null, tn1 = null;
-
-// Since the same JS file contains code for both sides of the connection,
-// activedc tracks which of the two possible datachannel variables we're using.
-var activedc;
-
-var pc1icedone = false;
+/* DOM INTERACTION CODE */
 
 $('#showLocalOffer').modal('hide');
 $('#getRemoteAnswer').modal('hide');
 $('#waitForConnection').modal('hide');
 $('#createOrJoin').modal('show');
 
+/* User interactions to host a chat */
+
 $('#createBtn').click(function() {
-    $('#showLocalOffer').modal('show');
-    createLocalOffer();
+    window.pgpStrength = parseInt($('#pgpStrength').val()) || 512;
+    window.usePGP = Boolean(parseInt($('#pgpStrength').val()));
+    window.sendTyping = $('#sendTyping').is(':checked');
+    $('#hostChat').modal('show');
+    hostChat(function (offer_desc) {
+        $('#offer').html(offer_desc);
+        $('#answer').keyup(function(e) {
+            if ($('#answer').val()) {
+                var answer = JSON.parse($('#answer').val());
+                $('#hostChat').remove();
+                $('.modal-backdrop').remove();
+                $('#waitForConnection').modal('show');
+                handleAnswerFromClient(answer);
+            }
+        });
+    }, displayChatReady);
 });
+
+/* User interactions to join a chat  */
 
 $('#joinBtn').click(function() {
-    $('#getRemoteOffer').modal('show');
-});
-
-$('#offerSentBtn').click(function() {
-    $('#getRemoteAnswer').modal('show');
-});
-
-$('#offerRecdBtn').click(function() {
-    var offer = $('#remoteOffer').val();
-    var offerDesc = new RTCSessionDescription(JSON.parse(offer));
-    console.log("Received remote offer", offerDesc);
-    writeToChatLog("Received remote offer", "text-success");
-    handleOfferFromPC1(offerDesc);
-    $('#showLocalAnswer').modal('show');
-});
-
-$('#answerSentBtn').click(function() {
-    $('#waitForConnection').modal('show');
-});
-
-$('#answerRecdBtn').click(function() {
-    var answer = $('#remoteAnswer').val();
-    var answerDesc = new RTCSessionDescription(JSON.parse(answer));
-    handleAnswerFromPC2(answerDesc);
-    $('#waitForConnection').modal('show');
-});
-
-$('#fileBtn').change(function() {
-    var file = this.files[0];
-    console.log(file);
-
-    sendFile(file);
-});
-
-function fileSent(file) {
-    console.log(file + " sent");
-}
-
-function fileProgress(file) {
-    console.log(file + " progress");
-}
-
-function sendFile(data) {
-    if (data.size) {
-        FileSender.send({
-          file: data,
-          onFileSent: fileSent,
-          onFileProgress: fileProgress,
-        });
-    }
-}
-
-function sendMessage() {
-    if ($('#messageTextBox').val()) {
-        var channel = new RTCMultiSession();
-        writeToChatLog($('#messageTextBox').val(), "text-success");
-        channel.send({message: $('#messageTextBox').val()});
-        $('#messageTextBox').val("");
-
-        // Scroll chat text area to the bottom on new input.
-        $('#chatlog').scrollTop($('#chatlog')[0].scrollHeight);
-    }
-
-    return false;
-};
-
-function setupDC1() {
-    try {
-        var fileReceiver1 = new FileReceiver();
-        dc1 = pc1.createDataChannel('test', {reliable:true});
-        activedc = dc1;
-        console.log("Created datachannel (pc1)");
-        dc1.onopen = function (e) {
-            console.log('data channel connect');
-            $('#waitForConnection').modal('hide');
-            $('#waitForConnection').remove();
+    window.pgpStrength = parseInt($('#pgpStrength').val()) || 512;
+    window.usePGP = Boolean(parseInt($('#pgpStrength').val()));
+    window.sendTyping = $('#sendTyping').is(':checked');
+    $('#joinChat').modal('show');
+    $('#offerFromHost').keyup(function(e) {
+        if ($('#offerFromHost').val()) {
+            var offer = JSON.parse($('#offerFromHost').val());
+            joinChat(offer, function(answer_desc) {
+                $('#answerToHost').html(answer_desc);
+            }, displayChatReady);
         }
-        dc1.onmessage = function (e) {
-            console.log("Got message (pc1)", e.data);
-            if (e.data.size) {
-                fileReceiver1.receive(e.data, {});
-            }
-            else {
-                if (e.data.charCodeAt(0) == 2) {
-                   // The first message we get from Firefox (but not Chrome)
-                   // is literal ASCII 2 and I don't understand why -- if we
-                   // leave it in, JSON.parse() will barf.
-                   return;
-                }
-                console.log(e);
-                var data = JSON.parse(e.data);
-                if (data.type === 'file') {
-                    fileReceiver1.receive(e.data, {});
-                }
-                else {
-                    writeToChatLog(data.message, "text-info");
-                    // Scroll chat text area to the bottom on new input.
-                    $('#chatlog').scrollTop($('#chatlog')[0].scrollHeight);
-                }
-            }
-        };
-    } catch (e) { console.warn("No data channel (pc1)", e); }
-}
+    });
+});
 
-function createLocalOffer() {
-    setupDC1();
-    pc1.createOffer(function (desc) {
-        pc1.setLocalDescription(desc, function () {});
-        console.log("created local offer", desc);
-    }, function () {console.warn("Couldn't create offer");});
-}
-
-pc1.onicecandidate = function (e) {
-    console.log("ICE candidate (pc1)", e);
-    if (e.candidate == null) {
-        $('#localOffer').html(JSON.stringify(pc1.localDescription));
+$('#messageTextBox').keydown(function() {
+    if (window.sendTyping) {
+        sendTypingMessage();
+        window.sendTyping = false;
+        setTimeout(function() {
+            window.sendTyping = true;
+        }, 1000);
     }
-};
+});
 
-function handleOnconnection() {
-    console.log("Datachannel connected");
-    writeToChatLog("Datachannel connected", "text-success");
-    $('#waitForConnection').modal('hide');
-    // If we didn't call remove() here, there would be a race on pc2:
-    //   - first onconnection() hides the dialog, then someone clicks
-    //     on answerSentBtn which shows it, and it stays shown forever.
+/* used both when joining and hosting */
+
+function displayChatReady() {
+    $('#joinChat').remove();
     $('#waitForConnection').remove();
-    $('#showLocalAnswer').modal('hide');
+    $('.modal-backdrop').remove();
     $('#messageTextBox').focus();
+    if (window.usePGP && !window.theyUsePGP) writeToChatLog("WARNING: You chose to enable PGP, but your chat partner did not.  Your messages will be sent encrypted but your partner's responses will come back in plain text.", "text-warning");
+    else if (!window.usePGP) writeToChatLog("WARNING: You did not choose to enable PGP.  Your messages will be sent in plain text.", "text-warning");
+    $('#sendMessageBtn').addClass('btn-primary');
 }
 
-pc1.onconnection = handleOnconnection;
-
-function onsignalingstatechange(state) {
-    console.info('signaling state change:', state);
-}
-
-function oniceconnectionstatechange(state) {
-    console.info('ice connection state change:', state);
-}
-
-function onicegatheringstatechange(state) {
-    console.info('ice gathering state change:', state);
-}
-
-pc1.onsignalingstatechange = onsignalingstatechange;
-pc1.oniceconnectionstatechange = oniceconnectionstatechange;
-pc1.onicegatheringstatechange = onicegatheringstatechange;
-
-function handleAnswerFromPC2(answerDesc) {
-    console.log("Received remote answer: ", answerDesc);
-    writeToChatLog("Received remote answer", "text-success");
-    pc1.setRemoteDescription(answerDesc);
-}
-
-function handleCandidateFromPC2(iceCandidate) {
-    pc1.addIceCandidate(iceCandidate);
-}
-
-
-/* THIS IS BOB, THE ANSWERER/RECEIVER */
-
-var pc2 = new RTCPeerConnection(cfg, con),
-    dc2 = null;
-
-var pc2icedone = false;
-
-pc2.ondatachannel = function (e) {
-    var fileReceiver2 = new FileReceiver();
-    var datachannel = e.channel || e; // Chrome sends event, FF sends raw channel
-    console.log("Received datachannel (pc2)", arguments);
-    dc2 = datachannel;
-    activedc = dc2;
-    dc2.onopen = function (e) {
-        console.log('data channel connect');
-        $('#waitForConnection').remove();
+function sendChatboxMessage() {
+    if ($('#messageTextBox').val()) {
+        sendMessage($('#messageTextBox').val(), window.usePGP);
+        $('#messageTextBox').val('')
     }
-    dc2.onmessage = function (e) {
-        console.log("Got message (pc2)", e.data);
-        if (e.data.size) {
-            fileReceiver2.receive(e.data, {});
-        }
-        else {
-            var data = JSON.parse(e.data);
-            if (data.type === 'file') {
-                fileReceiver2.receive(e.data, {});
-            }
-            else {
-                writeToChatLog(data.message, "text-info");
-                // Scroll chat text area to the bottom on new input.
-                $('#chatlog').scrollTop($('#chatlog')[0].scrollHeight);
-            }
+    return false;
+}
+
+function writeToChatLog(message, message_type, secure) {
+    $('.typing').remove();
+    var img;
+    if (window.usePGP == window.theyUsePGP || secure == undefined) img = '';
+    else if (secure) img = '<img class="secure-icon" src="img/lock.png" width="10px">';
+    else if (!secure) img = '<img class="insecure-icon" src="img/unlock.png" width="10px">';
+
+    document.getElementById('chatlog').innerHTML += img + '<p class="msg ' + message_type + '">[' + getTimestamp() + '] ' + message + '</p><br>';
+    $('#chatlog').scrollTop($('#chatlog')[0].scrollHeight);
+}
+
+function displayPartnerTyping() {
+    if (!$('.typing').length) document.getElementById('chatlog').innerHTML += '<p class=\"text-info\ typing">' + "[" + getTimestamp() + "] ...</p>";
+    else $('.typing').html("[" + getTimestamp() + "] ...");
+    setTimeout(function() {
+      $('.typing').remove();
+    }, 2000);
+}
+
+/* WebRTC + PGP CHAT CONNECTION CODE */
+
+function initConnection(conn, callback) {
+    window.myKeyPair = openpgp.generateKeyPair({numBits:window.pgpStrength,userId:"1",passphrase:"",unlocked:true});
+    console.log("Initialized Connection: ", conn);
+    window.activeConnection = conn;
+    conn.onconnection                   = function (state) {console.info('Chat connection complete: ', event);}
+    conn.onsignalingstatechange         = function (state) {console.info('Signaling state change: ', state); if (activeConnection.iceConnectionState == "disconnected") writeToChatLog("Chat partner disconnected.", "text-warning");}
+    conn.oniceconnectionstatechange     = function (state) {console.info('Signaling ICE connection state change: ', state); if (activeConnection.iceConnectionState == "disconnected") writeToChatLog("Chat partner disconnected.", "text-warning");}
+    conn.onicegatheringstatechange      = function (state) {console.info('Signaling ICE setup state change: ', state);}
+    conn.onicecandidate = function (event) {
+        // when browser has determined how to connect, generate offer or answer with ICE connection details and PGP public key
+        if (event.candidate == null) {
+            console.log("Valid ICE connection candidate determined.");
+            var offer_or_answer = JSON.stringify({
+                rtc: window.activeConnection.localDescription,
+                pgpKey: window.myKeyPair.publicKeyArmored,
+                encryption: window.usePGP
+            });
+            // pass the offer or answer to the callback for display to the user or sending over a communication channel
+            if (callback) callback(offer_or_answer);
         }
     };
-};
-
-function handleOfferFromPC1(offerDesc) {
-    pc2.setRemoteDescription(offerDesc);
-    pc2.createAnswer(function (answerDesc) {
-        writeToChatLog("Created local answer", "text-success");
-        console.log("Created local answer: ", answerDesc);
-        pc2.setLocalDescription(answerDesc);
-    }, function () { console.warn("No create answer"); });
+    conn.onfailure = function(details) {callback(details)};
 }
 
-pc2.onicecandidate = function (e) {
-    console.log("ICE candidate (pc2)", e);
-    if (e.candidate == null)
-       $('#localAnswer').html(JSON.stringify(pc2.localDescription));
-};
-
-pc2.onsignalingstatechange = onsignalingstatechange;
-pc2.oniceconnectionstatechange = oniceconnectionstatechange;
-pc2.onicegatheringstatechange = onicegatheringstatechange;
-
-function handleCandidateFromPC1(iceCandidate) {
-    pc2.addIceCandidate(iceCandidate);
+function initChannel(chan, callback) {
+    console.log("Initialized Data Channel: ", chan);
+    window.activeChannel = chan;
+    // once the channel is open, trigger the callback to enable the chat window or carry out other logic
+    chan.onopen = function (e) { console.log('Data Channel Connected.'); window.readystate = true; if (callback) callback();}
+    chan.onmessage = receiveMessage;
 }
 
-pc2.onaddstream = function (e) {
-    console.log("Got remote stream", e);
-    var el = new Audio();
-    el.autoplay = true;
-    attachMediaStream(el, e.stream);
-};
+function handleDescription(desc) {
+    activeConnection.setLocalDescription(desc, function () {});
+}
 
-pc2.onconnection = handleOnconnection;
+function handleDescriptionFailure() {
+    console.warn("Failed to create or answer chat offer.");
+    activeConnection.onfailure("Invalid or expired chat offer. Please try again.")
+}
+
+function sendTypingMessage() {
+    activeChannel.send(JSON.stringify({message:null,typing:true,encrypted:false}));
+}
+
+function sendMessage(message, encrypted) {
+    if (Boolean(encrypted)) {
+        activeChannel.send(JSON.stringify({message: encrypt(message), encrypted:true}));
+        writeToChatLog(message, "text-success sent secure", true);
+    }
+    else {
+        activeChannel.send(JSON.stringify({message: message, encrypted:false}));
+        writeToChatLog(message, "text-success sent insecure", false);
+    }
+}
+
+function receiveMessage(event) {
+    var data = JSON.parse(event.data);
+    if (data.type === 'file' || event.data.size) console.log("Receiving a file.");
+    else {
+        if (data.typing && !data.message) {
+            console.log("Partner is typing...");
+            displayPartnerTyping();
+        }
+        else {
+            console.log("Received a message: ", data.message);
+            if (data.encrypted) writeToChatLog(decrypt(data.message), "text-info recv", true);
+            else writeToChatLog(data.message, "text-info recv", false);
+        }
+    }
+}
+
+function decrypt(message) {
+    pgpMessage = openpgp.message.readArmored(message);
+    return openpgp.decryptMessage(window.myKeyPair.key, pgpMessage);
+}
+
+function encrypt(message) {
+    return openpgp.encryptMessage(window.theirPubKey.keys, message);
+}
+
+/* THE HOST (initiated the chat) */
+
+window.hostConnection = null;
+window.hostChannel = null;
+
+function hostChat(offer_callback, ready_callback) {
+    hostConnection = new RTCPeerConnection(cfg, con);
+    initConnection(hostConnection, offer_callback);
+    hostChannel = hostConnection.createDataChannel('test', {reliable:true});
+    initChannel(hostChannel, ready_callback);
+    
+    console.log("Creating RTC Chat Host Offer...");
+    hostConnection.createOffer(handleDescription, handleDescriptionFailure);
+    // copy paste this offer to all clients who want to join
+    // they paste their answer back, which goes into handleAnswerFromClient
+}
+
+function handleAnswerFromClient(answer) {
+    if (answer.pgpKey) {
+        window.theirPubKey = openpgp.key.readArmored(answer.pgpKey);
+        console.log("Received Chat Partner's Public PGP Key: ", answer.pgpKey);
+    }
+    window.theyUsePGP = Boolean(answer.encryption);
+
+    var answerDesc = new RTCSessionDescription(answer.rtc);
+    console.log("Received Chat RTC Join Answer: ", answerDesc);
+    hostConnection.setRemoteDescription(answerDesc);
+
+    writeToChatLog("Started hosting a chat.", "text-success");
+
+    // hostChannel.onopen will trigger once the connection is complete (enabling the chat window)
+}
+
+/* THE JOINEE (joins an existing chat) */
+
+window.clientConnection = null;
+window.clientChannel = null;
+
+function joinChat(offer, answer_callback, ready_callback) {
+    clientConnection = new RTCPeerConnection(cfg, con);
+    initConnection(clientConnection, answer_callback);
+
+    clientConnection.ondatachannel = function (e) {                                     // once client receives a good data channel from the host
+        var datachannel = e.channel || e;                                               // Chrome sends event, FF sends raw channel
+        clientChannel = datachannel;
+        initChannel(clientChannel, ready_callback);
+        writeToChatLog("Joined a chat.", "text-success");
+        // clientChannel.onopen will then trigger once the connection is complete (enabling the chat window)
+    };
+
+    if (offer.pgpKey) {
+        window.theirPubKey = openpgp.key.readArmored(offer.pgpKey);
+        console.log("Received Chat Partner's Public PGP Key: ", offer.pgpKey);
+    }
+    window.theyUsePGP = Boolean(offer.encryption);
+
+    var offerDesc = new RTCSessionDescription(offer.rtc);
+    console.log("Received Chat RTC Host Offer: ", offerDesc);
+    clientConnection.setRemoteDescription(offerDesc);
+    
+    console.log("Answering Chat Host Offer...");
+    clientConnection.createAnswer(handleDescription, handleDescriptionFailure);
+
+    // ondatachannel triggers once the client has accepted our answer ^
+}
+
+/* Utilities */
 
 function getTimestamp() {
     var totalSec = new Date().getTime() / 1000;
@@ -264,13 +264,58 @@ function getTimestamp() {
     var minutes = parseInt(totalSec / 60) % 60;
     var seconds = parseInt(totalSec % 60);
 
-    var result = (hours < 10 ? "0" + hours : hours) + ":" +
-                 (minutes < 10 ? "0" + minutes : minutes) + ":" +
-                 (seconds  < 10 ? "0" + seconds : seconds);
-
-    return result;
+    return (hours < 10 ? "0" + hours : hours) + ":" +
+           (minutes < 10 ? "0" + minutes : minutes) + ":" +
+           (seconds  < 10 ? "0" + seconds : seconds);
 }
 
-function writeToChatLog(message, message_type) {
-    document.getElementById('chatlog').innerHTML += '<p class=\"' + message_type + '\">' + "[" + getTimestamp() + "] " + message + '</p>';
+function lzw_encode(s) {
+    var dict = {};
+    var data = (s + "").split("");
+    var out = [];
+    var currChar;
+    var phrase = data[0];
+    var code = 256;
+    for (var i=1; i<data.length; i++) {
+        currChar=data[i];
+        if (dict[phrase + currChar] != null) {
+            phrase += currChar;
+        }
+        else {
+            out.push(phrase.length > 1 ? dict[phrase] : phrase.charCodeAt(0));
+            dict[phrase + currChar] = code;
+            code++;
+            phrase=currChar;
+        }
+    }
+    out.push(phrase.length > 1 ? dict[phrase] : phrase.charCodeAt(0));
+    for (var i=0; i<out.length; i++) {
+        out[i] = String.fromCharCode(out[i]);
+    }
+    return out.join("");
+}
+
+function lzw_decode(s) {
+    var dict = {};
+    var data = (s + "").split("");
+    var currChar = data[0];
+    var oldPhrase = currChar;
+    var out = [currChar];
+    var code = 256;
+    var phrase;
+    for (var i=1; i<data.length; i++) {
+        var currCode = data[i].charCodeAt(0);
+        if (currCode < 256) {
+            phrase = data[i];
+        }
+        else {
+           phrase = dict[currCode] ? dict[currCode] : (oldPhrase + currChar);
+        }
+        out.push(phrase);
+        currChar = phrase.charAt(0);
+        dict[code] = oldPhrase + currChar;
+        code++;
+        oldPhrase = phrase;
+    }
+    return out.join("");
 }
