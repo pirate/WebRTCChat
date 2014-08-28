@@ -5,20 +5,15 @@
     <title>PGP-Encrypted Chat over WebRTC</title>
     <script src="js/adapter.js"></script>
     <script src="js/jquery-2.0.0.js"></script>
-    <script src="js/bootstrap.js"></script>
-    <link href="css/bootstrap.css" rel="stylesheet">
-    <link href="css/bootstrap-responsive.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/bootstrap.css">
+    <link rel="stylesheet" href="css/bootstrap-responsive.css">
+    <link rel="stylesheet" href="css/bootstrap-theme.min.css">
+    <script src="js/bootstrap.min.js"></script>
     <style>
-      body {
-        height: 100%;
-      }
       #chatlog {
           overflow:auto;
           width: 100%;
           height: 350px;
-      }
-      #messageTextBox {
-        width: 80%;
       }
       .head {
         display: inline;
@@ -44,6 +39,27 @@
       .msg {
         display: inline;
       }
+      #files {
+        display:inline;
+      }
+      #file_list {
+        list-style:none;
+      }
+      #drop_zone {
+        cursor: pointer;
+        display:inline;
+        padding: 10px;
+        margin: 10px;
+        border: 2px dashed grey; 
+        width: 75%;
+        height 100px;
+        background-color: #EEE;
+        border-radius: 7px;
+      }
+      .active {
+        background-color: #DDD !important;
+        border: 2px dashed lightblue !important;
+      }
       #meIcon{height:20px; width:auto; padding-right:2px; display:none;}
       #themIcon{height:20px; width:auto; padding-left:2px; padding-bottom: 2px; display:none;}
     </style>
@@ -52,15 +68,24 @@
 
 <!--Chat Features-->
 
-<div>
-  <fieldset class="well">
+<div class="container">
+  <fieldset class="well row center-block">
     <p class="head muted"><img id="meIcon"><<PGP>PGP><img id="themIcon"> :: </p>Serverless WebRTC chat.  Your messages are sent from your browser directly to your partner's browser.</p>
     <div class="text-info" id="chatlog"></div>
   </fieldset>
-  <form class="form-inline" onSubmit="return sendChatboxMessage()" action="">
-    <input type="text" id="messageTextBox" placeholder="Type your message here">
-    <button type="submit" id="sendMessageBtn" class="btn">Send Message</button>
+  <form class="form-inline row" onSubmit="return sendChatboxMessage()" action="">
+  <div class="input-append">
+    <input type="text" id="messageTextBox" class="span10" placeholder="Type your message here">
+    <button type="submit" id="sendMessageBtn" class="btn span2" style="float:right;">Send Message</button>
+  </div>
   </form>
+  <div class="row center-block">
+    <div id="drop_zone" class="span7">Drop files here to share them with chat members.</div>
+    <input type="file" class="span5" id="files" name="files[]" multiple />
+  </div>
+  <output class="row center-block panel" id="list">
+    <ul class="list-group" id="file_list"></ul>
+  </output>
 </div>
 
 <!--Modals for connecting-->
@@ -126,6 +151,24 @@ $('#getRemoteAnswer').modal('hide');
 $('#waitForConnection').modal('hide');
 $('#createOrJoin').modal('show');
 
+function appendFiles(files) {
+    for (var i = 0, f; f = files[i]; i++) {
+        $('#file_list').prepend('<li class="list-group-item"><span class="badge">'+String(f.size)+' bytes</span>'+f.name+' ('+ String(f.type) +')</li>');
+    }
+}
+
+function handleDragOver(evt) {evt.stopPropagation();evt.preventDefault();evt.dataTransfer.dropEffect = 'copy';$('#drop_zone').addClass('active');}
+function handleChooseFiles(evt) {appendFiles(evt.target.files);}
+function handleDropFiles(evt)   {evt.stopPropagation();evt.preventDefault();$('#drop_zone').removeClass('active');appendFiles(evt.dataTransfer.files); return false;}
+
+$('#files').on('change', handleChooseFiles);
+
+var dropZone = document.getElementById('drop_zone');
+dropZone.addEventListener('dragleave', function(e) {$('#drop_zone').removeClass('active')}, false);
+dropZone.addEventListener('dragover', handleDragOver, false);
+dropZone.addEventListener('drop', handleDropFiles, false);
+
+
 /* used both when joining and hosting */
 
 function getTimestamp () {
@@ -148,8 +191,8 @@ function displayChatReady() {
     $('#meIcon').attr('src', urls[1*WebRTCChat.usePGP]).css('display','inline');
     $('#themIcon').attr('src', urls[1*WebRTCChat.theyUsePGP]).css('display','inline');
     $('#messageTextBox').focus();
-    if (WebRTCChat.usePGP && !WebRTCChat.theyUsePGP) WebRTCChat.writeToChatLog("WARNING: You chose to enable PGP, but your chat partner did not.  Your messages will be sent encrypted but your partner's responses will come back in plain text.", "text-warning");
-    else if (!WebRTCChat.usePGP) WebRTCChat.writeToChatLog("WARNING: You did not choose to enable PGP.  Your messages will be sent in plain text.", "text-warning");
+    if (WebRTCChat.usePGP && !WebRTCChat.theyUsePGP) WebRTCChat.writeToChatLog("WARNING: You chose to enable PGP, but your chat partner did not.  Your messages will be sent encrypted but your partner's responses will come back in plain text.", "text-warning alert-warning");
+    else if (!WebRTCChat.usePGP) WebRTCChat.writeToChatLog("WARNING: You did not choose to enable PGP.  Your messages will be sent in plain text.", "text-warning alert-warning");
     $('#sendMessageBtn').addClass('btn-primary');
 }
 

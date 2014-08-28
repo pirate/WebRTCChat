@@ -31,9 +31,9 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
     /* THE HOST (initiated the chat) */
 
     self.hostChat = function(offer_callback, ready_callback) {
-        var hostConnection = new RTCPeerConnection(self.cfg, self.con);
+        var hostConnection = new RTCPeerConnection(self.cfg, self.con);                                 // init connection
         self.initConnection(hostConnection, offer_callback);
-        var hostChannel = hostConnection.createDataChannel('test', {reliable:true});
+        var hostChannel = hostConnection.createDataChannel('test', {reliable:true, ordered:true});      // init channel
         self.initChannel(hostChannel, ready_callback);
         
         console.log("Creating RTC Chat Host Offer...");
@@ -53,7 +53,7 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
         console.log("Received Chat RTC Join Answer: ", answerDesc);
         self.activeConnection.setRemoteDescription(answerDesc);
 
-        writeToChatLog("Started hosting a chat.", "text-success");
+        writeToChatLog("Started hosting a chat.", "text-success alert-success");
 
         // hostChannel.onopen will trigger once the connection is complete (enabling the chat window)
     }
@@ -68,7 +68,7 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
             // Chrome sends event, FF sends raw channel
             var clientChannel = e.channel || e;
             self.initChannel(clientChannel, ready_callback);
-            writeToChatLog("Joined a chat.", "text-success");
+            writeToChatLog("Joined a chat.", "text-success bg-success");
             // clientChannel.onopen will then trigger once the connection is complete (enabling the chat window)
         };
 
@@ -94,8 +94,8 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
         self.myKeyPair = openpgp.generateKeyPair({numBits:self.pgpStrength,userId:"1",passphrase:"",unlocked:true});
         // these dont really do anything
         conn.onconnection                   = function (state) {console.info('Chat connection complete: ', event);}
-        conn.onsignalingstatechange         = function (state) {console.info('Signaling state change: ', state); if (self.activeConnection.iceConnectionState == "disconnected") self.writeToChatLog("Chat partner disconnected.", "text-warning");}
-        conn.oniceconnectionstatechange     = function (state) {console.info('Signaling ICE connection state change: ', state); if (self.activeConnection.iceConnectionState == "disconnected") self.writeToChatLog("Chat partner disconnected.", "text-warning");}
+        conn.onsignalingstatechange         = function (state) {console.info('Signaling state change: ', state); if (self.activeConnection.iceConnectionState == "disconnected") self.writeToChatLog("Chat partner disconnected.", "text-warning alert-error");}
+        conn.oniceconnectionstatechange     = function (state) {console.info('Signaling ICE connection state change: ', state); if (self.activeConnection.iceConnectionState == "disconnected") self.writeToChatLog("Chat partner disconnected.", "text-warning alert-error");}
         conn.onicegatheringstatechange      = function (state) {console.info('Signaling ICE setup state change: ', state);}
         //this is the important one
         conn.onicecandidate = function (event) {
