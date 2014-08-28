@@ -28,11 +28,12 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
 
 /* WebRTC + PGP CHAT CONNECTION CODE */
 
-    /* THE HOST (initiated the chat) */
+    /* THE HOST (initiates the chat) */
 
     self.hostChat = function(offer_callback, ready_callback) {
         var hostConnection = new RTCPeerConnection(self.cfg, self.con);                                 // init connection
         self.initConnection(hostConnection, offer_callback);
+
         var hostChannel = hostConnection.createDataChannel('test', {reliable:true, ordered:true});      // init channel
         self.initChannel(hostChannel, ready_callback);
         
@@ -68,7 +69,7 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
             // Chrome sends event, FF sends raw channel
             var clientChannel = e.channel || e;
             self.initChannel(clientChannel, ready_callback);
-            writeToChatLog("Joined a chat.", "text-success bg-success");
+            writeToChatLog("Joined a chat.", "text-success alert-success");
             // clientChannel.onopen will then trigger once the connection is complete (enabling the chat window)
         };
 
@@ -92,14 +93,14 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
     self.initConnection = function(conn, callback) {
         self.activeConnection = conn;
         self.myKeyPair = openpgp.generateKeyPair({numBits:self.pgpStrength,userId:"1",passphrase:"",unlocked:true});
-        // these dont really do anything
+        // these aren't really necessary
         conn.onconnection                   = function (state) {console.info('Chat connection complete: ', event);}
         conn.onsignalingstatechange         = function (state) {console.info('Signaling state change: ', state); if (self.activeConnection.iceConnectionState == "disconnected") self.writeToChatLog("Chat partner disconnected.", "text-warning alert-error");}
         conn.oniceconnectionstatechange     = function (state) {console.info('Signaling ICE connection state change: ', state); if (self.activeConnection.iceConnectionState == "disconnected") self.writeToChatLog("Chat partner disconnected.", "text-warning alert-error");}
         conn.onicegatheringstatechange      = function (state) {console.info('Signaling ICE setup state change: ', state);}
         //this is the important one
         conn.onicecandidate = function (event) {
-            // when browser has determined how to connect, generate offer or answer with ICE connection details and PGP public key
+            // when browser has determined how to form a connection, generate offer or answer with ICE connection details and PGP public key
             if (event.candidate == null) {
                 console.log("Valid ICE connection candidate determined.");
                 var offer_or_answer = JSON.stringify({
@@ -108,7 +109,7 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
                     encryption: self.usePGP,
                     roomName: self.roomName
                 });
-                // pass the offer or answer to the callback for display to the user or sending over a communication channel
+                // pass the offer or answer to the callback for display to the user or to send over some other communication channel
                 if (callback) callback(offer_or_answer);
             }
         };
