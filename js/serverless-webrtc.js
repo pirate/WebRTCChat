@@ -94,10 +94,17 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
         self.activeConnection = conn;
         self.myKeyPair = openpgp.generateKeyPair({numBits:self.pgpStrength,userId:"1",passphrase:"",unlocked:true});
         // these aren't really necessary
+        conn.addStream(window.myStream);
         conn.onconnection                   = function (state) {console.info('Chat connection complete: ', event);}
         conn.onsignalingstatechange         = function (state) {console.info('Signaling state change: ', state); if (self.activeConnection.iceConnectionState == "disconnected") self.writeToChatLog("Chat partner disconnected.", "text-warning alert-error");}
         conn.oniceconnectionstatechange     = function (state) {console.info('Signaling ICE connection state change: ', state); if (self.activeConnection.iceConnectionState == "disconnected") self.writeToChatLog("Chat partner disconnected.", "text-warning alert-error");}
         conn.onicegatheringstatechange      = function (state) {console.info('Signaling ICE setup state change: ', state);}
+        conn.onaddstream = function (event) {
+            var video = document.getElementById('theirVideo');
+            if (window.URL) video.src = window.URL.createObjectURL(event.stream);
+            else video.src = event.stream;
+            console.log("YAAAAAAAAgotvideo");
+        }
         //this is the important one
         conn.onicecandidate = function (event) {
             // when browser has determined how to form a connection, generate offer or answer with ICE connection details and PGP public key

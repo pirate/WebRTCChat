@@ -86,6 +86,9 @@
   <output class="row center-block panel" id="list">
     <ul class="list-group" id="file_list"></ul>
   </output>
+  <button onclick="WebRTCChat.initVideo();">Start Video</button>
+  <video id="myVideo" style="width:300px;height:400px;display:inline;" autoplay muted></video>
+  <video id="theirVideo" style="width:300px;height:400px;display:inline;" autoplay muted></video>
 </div>
 
 <!--Modals for connecting-->
@@ -143,6 +146,21 @@
 <script src="js/file-transfer.js"></script>
 <script type="text/javascript">
 window.WebRTCChat = new WebRTCChat();
+
+navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+var video = document.getElementById('myVideo');
+
+navigator.getUserMedia({
+    audio: false, 
+    video: true
+}, function (stream) {
+  if (window.URL) video.src = window.URL.createObjectURL(stream);
+  else video.src = stream;
+  window.myStream = stream;
+}, function (error){
+  console.log('navigator.getUserMedia error: ', error);
+});
+
 
 /* DOM INTERACTION CODE */
 
