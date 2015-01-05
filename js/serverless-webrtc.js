@@ -1,30 +1,15 @@
-function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
+function WebRTCChat(cfg, con, sendTyping) {
     var self = this;
 
 /* WebRTC setup for broser-to-browser connection */
-    self.cfg = {'iceServers':[]}; //{"url":"stun:23.21.150.121"}
+    self.cfg = {'iceServers':[{"url":"stun:23.21.150.121"}]}; //{"url":"stun:23.21.150.121"}
     self.con = {'optional':  [{'DtlsSrtpKeyAgreement': true}] };
     self.activeChannel;
     self.activeConnection;
     self.roomName;
 
-/* OpenPGP setup for chat encryption */
-    self.myKeyPair = null;
-    self.theirPubKey = "";
     self.readystate = false;
-    self.usePGP = true;
-    self.theyUsePGP = true;
-    self.pgpStrength = 512;
     self.sendTyping = true;
-
-    self.PGPdecrypt = function(message) {
-        pgpMessage = openpgp.message.readArmored(message);
-        return openpgp.decryptMessage(self.myKeyPair.key, pgpMessage);
-    }
-
-    self.PGPencrypt = function(message) {
-        return openpgp.encryptMessage(self.theirPubKey.keys, message);
-    }
 
 /* WebRTC + PGP CHAT CONNECTION CODE */
 
@@ -34,7 +19,7 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
         var hostConnection = new RTCPeerConnection(self.cfg, self.con);                                 // init connection
         self.initConnection(hostConnection, offer_callback);
 
-        var hostChannel = hostConnection.createDataChannel('test', {reliable:true, ordered:true});      // init channel
+        var hostChannel = hostConnection.createDataChannel('chat', {reliable:true, ordered:true});      // init channel
         self.initChannel(hostChannel, ready_callback);
         
         console.log("Creating RTC Chat Host Offer...");
@@ -44,12 +29,6 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
     }
 
     self.handleAnswerFromClient = function(answer) {
-        if (answer.pgpKey) {
-            self.theirPubKey = openpgp.key.readArmored(answer.pgpKey);
-            console.log("Received Chat Partner's Public PGP Key: ", answer.pgpKey);
-        }
-        self.theyUsePGP = Boolean(answer.encryption);
-
         var answerDesc = new RTCSessionDescription(answer.rtc);
         console.log("Received Chat RTC Join Answer: ", answerDesc);
         self.activeConnection.setRemoteDescription(answerDesc);
@@ -73,11 +52,6 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
             // clientChannel.onopen will then trigger once the connection is complete (enabling the chat window)
         };
 
-        if (offer.pgpKey) {
-            self.theirPubKey = openpgp.key.readArmored(offer.pgpKey);
-            console.log("Received Chat Partner's Public PGP Key: ", offer.pgpKey);
-        }
-        self.theyUsePGP = Boolean(offer.encryption);
         self.roomName = offer.roomName;
 
         var offerDesc = new RTCSessionDescription(offer.rtc);
@@ -92,12 +66,18 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
 
     self.initConnection = function(conn, callback) {
         self.activeConnection = conn;
-        self.myKeyPair = openpgp.generateKeyPair({numBits:self.pgpStrength,userId:"1",passphrase:"",unlocked:true});
         // these aren't really necessary
+        conn.addStream(window.myStream);
         conn.onconnection                   = function (state) {console.info('Chat connection complete: ', event);}
         conn.onsignalingstatechange         = function (state) {console.info('Signaling state change: ', state); if (self.activeConnection.iceConnectionState == "disconnected") self.writeToChatLog("Chat partner disconnected.", "text-warning alert-error");}
         conn.oniceconnectionstatechange     = function (state) {console.info('Signaling ICE connection state change: ', state); if (self.activeConnection.iceConnectionState == "disconnected") self.writeToChatLog("Chat partner disconnected.", "text-warning alert-error");}
         conn.onicegatheringstatechange      = function (state) {console.info('Signaling ICE setup state change: ', state);}
+        conn.onaddstream = function (event) {
+            var video = document.getElementById('theirVideo');
+            if (window.URL) video.src = window.URL.createObjectURL(event.stream);
+            else video.src = event.stream;
+            console.log("YAAAAAAAAgotvideo");
+        }
         //this is the important one
         conn.onicecandidate = function (event) {
             // when browser has determined how to form a connection, generate offer or answer with ICE connection details and PGP public key
@@ -105,8 +85,6 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
                 console.log("Valid ICE connection candidate determined.");
                 var offer_or_answer = JSON.stringify({
                     rtc: self.activeConnection.localDescription,
-                    pgpKey: self.myKeyPair.publicKeyArmored,
-                    encryption: self.usePGP,
                     roomName: self.roomName
                 });
                 // pass the offer or answer to the callback for display to the user or to send over some other communication channel
@@ -137,18 +115,12 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
     // messaging functions
 
     self.sendTypingMessage = function() {
-        self.activeChannel.send(JSON.stringify({message:null,typing:true,encrypted:false}));
+        self.activeChannel.send(JSON.stringify({message:null,typing:true}));
     }
 
-    self.sendMessage = function(message, encrypted) {
-        if (Boolean(encrypted)) {
-            self.activeChannel.send(JSON.stringify({message: self.PGPencrypt(message), encrypted:true}));
-            self.writeToChatLog(message, "text-success sent secure", true);
-        }
-        else {
-            self.activeChannel.send(JSON.stringify({message: message, encrypted:false}));
-            self.writeToChatLog(message, "text-success sent insecure", false);
-        }
+    self.sendMessage = function(message) {
+        self.activeChannel.send(JSON.stringify({message: message}));
+        self.writeToChatLog(message, "text-success sent insecure", false);
     }
 
     self.receiveMessage = function(event) {
@@ -161,8 +133,7 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
             }
             else {
                 console.log("Received a message: ", data.message);
-                if (data.encrypted) self.writeToChatLog(self.PGPdecrypt(data.message), "text-info recv", true);
-                else self.writeToChatLog(data.message, "text-info recv", false);
+                self.writeToChatLog(data.message, "text-info recv", false);
             }
         }
     }
@@ -174,58 +145,4 @@ function WebRTCChat(cfg, con, myKeyPair, usePGP, theyUsePGP, sendTyping) {
     self.writeToChatLog = function(message, message_type, secure) {console.log("-> ", message, message_type, secure);}
 
     self.displayPartnerTyping = function() {console.log("-> Typing...");}
-
-    self.compress = function(s) {
-        //lzw_encode
-        var dict = {};
-        var data = (s + "").split("");
-        var out = [];
-        var currChar;
-        var phrase = data[0];
-        var code = 256;
-        for (var i=1; i<data.length; i++) {
-            currChar=data[i];
-            if (dict[phrase + currChar] != null) {
-                phrase += currChar;
-            }
-            else {
-                out.push(phrase.length > 1 ? dict[phrase] : phrase.charCodeAt(0));
-                dict[phrase + currChar] = code;
-                code++;
-                phrase=currChar;
-            }
-        }
-        out.push(phrase.length > 1 ? dict[phrase] : phrase.charCodeAt(0));
-        for (var i=0; i<out.length; i++) {
-            out[i] = String.fromCharCode(out[i]);
-        }
-        return out.join("");
-    }
-
-    self.decompress = function(s) {
-        // lzw_decode
-        var dict = {};
-        var data = (s + "").split("");
-        var currChar = data[0];
-        var oldPhrase = currChar;
-        var out = [currChar];
-        var code = 256;
-        var phrase;
-        for (var i=1; i<data.length; i++) {
-            var currCode = data[i].charCodeAt(0);
-            if (currCode < 256) {
-                phrase = data[i];
-            }
-            else {
-               phrase = dict[currCode] ? dict[currCode] : (oldPhrase + currChar);
-            }
-            out.push(phrase);
-            currChar = phrase.charAt(0);
-            dict[code] = oldPhrase + currChar;
-            code++;
-            oldPhrase = phrase;
-        }
-        return out.join("");
-    }
-
 }
