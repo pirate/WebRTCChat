@@ -124,14 +124,6 @@
   <div class="modal-header"><h3 id="title4">Create or join a room?</h3></div>
   <div class="modal-body">
     <label>Room Name: <input id="roomName" placeholder="Chat Room"></input></label>
-    <label>PGP Strength: 
-    <select style="margin:0px;" id="pgpStrength"/>
-        <option value="0">Off</option> 
-        <option value="512" selected="selected">512 Bit</option> 
-        <option value="1024">1024 Bit</option>
-        <option value="2048">2048 Bit (Slow)</option>
-    </select></label>
-    <label style="color:grey;">Save PGP keys locally:  <input style="margin:0px;" id="pgpKeySave" type="checkbox" disabled/></label>
     <label>Send typing notifications:                  <input style="margin:0px;" id="sendTyping" type="checkbox" checked="true"/></label><br>
     <button class="btn btn-primary" id="createBtn" data-dismiss="modal" aria-hidden="true">Create a New Chat</button>
     <button class="btn" style="text-align:right;" id="joinBtn" data-dismiss="modal" aria-hidden="true">Join an existing chat</button>
@@ -206,28 +198,21 @@ function displayChatReady() {
     $('.modal-backdrop').remove();
     document.title = WebRTCChat.roomName + ":" + document.title;
     urls = ['img/unlock.png', 'img/lock.png']
-    $('#meIcon').attr('src', urls[1*WebRTCChat.usePGP]).css('display','inline');
-    $('#themIcon').attr('src', urls[1*WebRTCChat.theyUsePGP]).css('display','inline');
     $('#messageTextBox').focus();
-    if (WebRTCChat.usePGP && !WebRTCChat.theyUsePGP) WebRTCChat.writeToChatLog("WARNING: You chose to enable PGP, but your chat partner did not.  Your messages will be sent encrypted but your partner's responses will come back in plain text.", "text-warning alert-warning");
-    else if (!WebRTCChat.usePGP) WebRTCChat.writeToChatLog("WARNING: You did not choose to enable PGP.  Your messages will be sent in plain text.", "text-warning alert-warning");
     $('#sendMessageBtn').addClass('btn-primary');
 }
 
 function sendChatboxMessage() {
     if ($('#messageTextBox').val()) {
-        WebRTCChat.sendMessage($('#messageTextBox').val(), WebRTCChat.usePGP);
-        $('#messageTextBox').val('')
+        WebRTCChat.sendMessage($('#messageTextBox').val());
+        $('#messageTextBox').val('');
     }
     return false;
 }
 
 function writeToChatLog(message, message_type, secure) {
     $('.typing').remove();
-    var img;
-    if (WebRTCChat.usePGP == WebRTCChat.theyUsePGP || secure == undefined) img = '';
-    else if (secure) img = '<img class="secure-icon" src="img/lock.png" width="10px">';
-    else if (!secure) img = '<img class="insecure-icon" src="img/unlock.png" width="10px">';
+    var img = '<img class="insecure-icon" src="img/unlock.png" width="10px">';
 
     document.getElementById('chatlog').innerHTML += img + '<p class="msg ' + message_type + '">[' + getTimestamp() + '] ' + message + '</p><br>';
     $('#chatlog').scrollTop($('#chatlog')[0].scrollHeight);
@@ -247,8 +232,6 @@ window.WebRTCChat.displayPartnerTyping = displayPartnerTyping;
 /* User interactions to host a chat */
 
 $('#createBtn').click(function() {
-    WebRTCChat.pgpStrength = parseInt($('#pgpStrength').val()) || 512;
-    WebRTCChat.usePGP = Boolean(parseInt($('#pgpStrength').val()));
     WebRTCChat.sendTyping = $('#sendTyping').is(':checked');
     WebRTCChat.roomName = $('#roomName').val();
     $('#hostChat').modal('show');
@@ -269,8 +252,6 @@ $('#createBtn').click(function() {
 /* User interactions to join a chat  */
 
 $('#joinBtn').click(function() {
-    WebRTCChat.pgpStrength = parseInt($('#pgpStrength').val()) || 512;
-    WebRTCChat.usePGP = Boolean(parseInt($('#pgpStrength').val()));
     WebRTCChat.sendTyping = $('#sendTyping').is(':checked');
     $('#joinChat').modal('show');
     $('#offerFromHost').keyup(function(e) {
