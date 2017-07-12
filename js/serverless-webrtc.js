@@ -37,13 +37,13 @@ function WebRTCChat(cfg, con, sendTyping) {
         });
         self.initChannel(hostChannel, ready_callback);
 
-        self.initVideo();
+        // self.initVideo();
 
         console.log("Creating RTC Chat Host Offer...");
         hostConnection.createOffer(
             self.handleDescription,
-            self.handleDescriptionFailure,
-            {offerToReceiveAudio: true, offerToReceiveVideo: true}
+            self.handleDescriptionFailure
+            // {offerToReceiveAudio: true, offerToReceiveVideo: true}
         );
         // copy paste this offer to all clients who want to join
         // they paste their answer back, which goes into handleAnswerFromClient
