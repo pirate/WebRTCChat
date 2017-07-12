@@ -82,7 +82,7 @@ function WebRTCChat(cfg, con, sendTyping) {
         self.activeConnection.createAnswer(
             self.handleDescription,
             self.handleDescriptionFailure,
-            {offerToReceiveAudio: true, offerToReceiveVideo: true},
+            {offerToReceiveAudio: true, offerToReceiveVideo: true}
         );
 
         // ondatachannel triggers once the client has accepted our answer ^
@@ -101,7 +101,7 @@ function WebRTCChat(cfg, con, sendTyping) {
                 video.src = window.URL.createObjectURL(event.stream);
             else
                 video.src = event.stream;
-            console.log("YAAAAAAAAgotvideo");
+            console.log("You got their video!");
         }
         //this is the important one
         conn.onicecandidate = function (event) {
