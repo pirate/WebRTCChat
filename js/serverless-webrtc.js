@@ -6,6 +6,7 @@ var bitrateDiv = document.getElementById('bitrate')
 var statusMessage = document.getElementById('status')
 var downloadsAnchor = document.getElementById('downloads')
 var theirVideo = document.getElementById('theirVideo')
+var myVideo = document.getElementById('myVideo')
 
 function WebRTCChat(cfg, con, sendTyping) {
     var self = this;
@@ -170,7 +171,7 @@ function WebRTCChat(cfg, con, sendTyping) {
 
     self.initVideo = function() {
         navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
-        var video = document.getElementById('myVideo');
+        var video = myVideo;
 
         navigator.getUserMedia({
             audio: false,
