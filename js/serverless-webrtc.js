@@ -31,13 +31,13 @@ function WebRTCChat(cfg, con, sendTyping) {
         var hostConnection = new RTCPeerConnection(self.cfg, self.con);                                 // init connection
         self.initConnection(hostConnection, offer_callback);
 
-        self.initVideo();
-
         var hostChannel = hostConnection.createDataChannel('chat', {
-            reliable: true,
-            ordered: true,
+            // reliable: true,
+            // ordered: true
         });
         self.initChannel(hostChannel, ready_callback);
+
+        self.initVideo();
 
         console.log("Creating RTC Chat Host Offer...");
         hostConnection.createOffer(
@@ -79,6 +79,8 @@ function WebRTCChat(cfg, con, sendTyping) {
         var offerDesc = new RTCSessionDescription(offer.rtc);
         console.log("Received Chat RTC Host Offer: ", offerDesc);
         self.activeConnection.setRemoteDescription(offerDesc);
+
+        self.initVideo();
 
         console.log("Answering Chat Host Offer...");
         self.activeConnection.createAnswer(
@@ -136,7 +138,7 @@ function WebRTCChat(cfg, con, sendTyping) {
     }
 
     self.handleDescription = function(desc) {
-        self.activeConnection.setLocalDescription(desc, function () {});
+        self.activeConnection.setLocalDescription(desc);
     }
 
     self.handleDescriptionFailure = function() {
