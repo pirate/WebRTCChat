@@ -161,7 +161,6 @@ function WebRTCChat(cfg, con, sendTyping) {
         try {
             var data = JSON.parse(event.data);
         } catch(e) {
-            console.log('RECEIVING FILE')
             return self.receiveFile(event);
         }
 
@@ -247,9 +246,7 @@ function WebRTCChat(cfg, con, sendTyping) {
 
         // we are assuming that our signaling protocol told
         // about the expected file size (and name, hash, etc).
-        var received = new Blob(self.receiveBuffer, {type: self.incomingFile.type});
-        self.receiveBuffer = [];
-
+        var received = new Blob(self.receiveBuffer, {type: 'application/octet-binary'});  // self.incomingFile.type
         var url = URL.createObjectURL(received);
         self.incomingFile.anchor.href = url;
 

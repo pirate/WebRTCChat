@@ -259,7 +259,6 @@ function displayChatReady() {
     $('#waitForConnection').remove();
     $('.modal-backdrop').remove();
     document.title = WebRTCChat.roomName + ":" + document.title;
-    urls = ['img/unlock.png', 'img/lock.png']
     $('#messageTextBox').focus();
     $('#sendMessageBtn').addClass('btn-primary');
 }
@@ -274,9 +273,9 @@ function sendChatboxMessage() {
 
 function writeToChatLog(message, message_type, secure) {
     $('.typing').remove();
-    var img = '<img class="insecure-icon" src="img/unlock.png" width="10px">';
+    // var img = '<img class="insecure-icon" src="img/unlock.png" width="10px">';
 
-    document.getElementById('chatlog').innerHTML += img + '<p class="msg ' + message_type + '">[' + getTimestamp() + '] ' + message + '</p><br>';
+    document.getElementById('chatlog').innerHTML += '<p class="msg ' + message_type + '">[' + getTimestamp() + '] ' + message + '</p><br>';
     $('#chatlog').scrollTop($('#chatlog')[0].scrollHeight);
 }
 
