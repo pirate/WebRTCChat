@@ -80,13 +80,13 @@ function WebRTCChat(cfg, con, sendTyping) {
         console.log("Received Chat RTC Host Offer: ", offerDesc);
         self.activeConnection.setRemoteDescription(offerDesc);
 
-        self.initVideo();
+        // self.initVideo();
 
         console.log("Answering Chat Host Offer...");
         self.activeConnection.createAnswer(
             self.handleDescription,
-            self.handleDescriptionFailure,
-            {offerToReceiveAudio: true, offerToReceiveVideo: true}
+            self.handleDescriptionFailure
+            // {offerToReceiveAudio: true, offerToReceiveVideo: true}
         );
 
         // ondatachannel triggers once the client has accepted our answer ^
