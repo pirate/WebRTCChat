@@ -79,7 +79,11 @@ function WebRTCChat(cfg, con, sendTyping) {
         self.activeConnection.setRemoteDescription(offerDesc);
 
         console.log("Answering Chat Host Offer...");
-        self.activeConnection.createAnswer(self.handleDescription, self.handleDescriptionFailure);
+        self.activeConnection.createAnswer(
+            self.handleDescription,
+            self.handleDescriptionFailure,
+            {offerToReceiveAudio: true, offerToReceiveVideo: true},
+        );
 
         // ondatachannel triggers once the client has accepted our answer ^
     }
