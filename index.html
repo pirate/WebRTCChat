@@ -114,12 +114,16 @@
         <button class="btn" onclick="WebRTCChat.initVideo();">Share Video</button>
         <button class="btn" onclick="WebRTCChat.initAudio();">Share Audio</button><br/>
         <br/>
-        <video id="myVideo" style="border: 1px solid #ddd;width:50%;height:400px;display:inline-block;" autoplay muted>
-            My video
-        </video>
-        <video id="theirVideo" style="border: 1px solid #ddd;width:50%;height:400px;display:inline-block;" autoplay muted>
-            Their video
-        </video>
+        <div style="float: right; width: 50%; text-align: center">
+          My video
+          <video id="myVideo" style="border: 1px solid #ddd;width:45%;height:100px;display:inline-block;" autoplay muted>
+          </video>
+        </div>
+        <div style="width: 50%; text-align: center">
+          Their video<br/>
+          <video id="theirVideo" style="border: 1px solid #ddd;width:45%;height:100px;display:inline-block;" autoplay muted>
+          </video>
+        </div>
     </div>
   </div>
 </div>
