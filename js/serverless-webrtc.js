@@ -31,6 +31,8 @@ function WebRTCChat(cfg, con, sendTyping) {
         var hostConnection = new RTCPeerConnection(self.cfg, self.con);                                 // init connection
         self.initConnection(hostConnection, offer_callback);
 
+        self.initVideo();
+
         var hostChannel = hostConnection.createDataChannel('chat', {
             reliable: true,
             ordered: true,
@@ -191,9 +193,9 @@ function WebRTCChat(cfg, con, sendTyping) {
             video.src = stream;
           window.myStream = stream;
           self.activeConnection.addStream(window.myStream);
-            self.activeChannel.send(JSON.stringify({
-                message: "Started sharing video."
-            }));
+            // self.activeChannel.send(JSON.stringify({
+            //     message: "Started sharing video."
+            // }));
             self.writeToChatLog(
                 "Started sharing video.",
                 "text-success sent insecure", false);
