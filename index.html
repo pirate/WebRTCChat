@@ -50,7 +50,7 @@
         display:inline;
         padding: 10px;
         margin: 10px;
-        border: 2px dashed grey; 
+        border: 2px dashed grey;
         width: 75%;
         height 100px;
         background-color: #EEE;
@@ -70,7 +70,11 @@
 
 <div class="container">
   <fieldset class="well row center-block">
-    <p class="head muted"><img id="meIcon"><<PGP>PGP><img id="themIcon"> :: </p>Serverless WebRTC chat.  Your messages are sent from your browser directly to your partner's browser.</p>
+      <p class="head muted">
+        :: Serverless WebRTC chat.  Your messages are sent from your browser directly to your partner's browser.<br/>
+        :: The connection is encrypted, and no history is kept when you refresh.  <!--Use backtics for `code`.-->
+        <hr/>
+      </p>
     <div class="text-info" id="chatlog"></div>
   </fieldset>
   <form class="form-inline row" onSubmit="return sendChatboxMessage()" action="">
@@ -79,16 +83,41 @@
     <button type="submit" id="sendMessageBtn" class="btn span2" style="float:right;">Send Message</button>
   </div>
   </form>
-  <div class="row center-block">
-    <div id="drop_zone" class="span7">Drop files here to share them with chat members.</div>
-    <input type="file" class="span5" id="files" name="files[]" multiple />
+  <div class="row">
+    <div style="width: 50%; float: right; min-width: 300px">
+      <h4>Send Files</h4>
+      <div id="drop_zone" class="span7" style="height: 50px; width: 80%; text-align: center; padding-top: 40px">
+        Drop files here to share them with chat members.<br/>
+      </div>
+      <input type="file" class="span5" id="files" name="files[]" multiple />
+
+      <output class="row center-block panel" id="list">
+        <ul class="list-group" id="file_list"></ul>
+      </output>
+
+      <div class="progress">
+        <div class="">Send progress: </div>
+        <progress id="sendProgress" max="0" value="0" style="width: 100%"></progress>
+      </div>
+
+      <h4>Received Files</h4>
+      <ul id="downloads"></ul>
+      <span id="status"></span>
+      <div class="progress">
+        <div class="">Receive progress: </div>
+        <progress id="receiveProgress" max="0" value="0" style="width: 100%"></progress>
+      </div>
+      <div id="bitrate"></div>
+    </div>
+    <div id="videoSection" style="width: 50%; min-width: 300px">
+      <h4>Audio &amp; Video</h4>
+        <button class="btn" onclick="WebRTCChat.initVideo();">Share Video</button>
+        <button class="btn" onclick="WebRTCChat.initAudio();">Share Audio</button><br/>
+        <hr/>
+        <video id="myVideo" style="width:300px;height:400px;display:inline;" autoplay muted></video>
+        <video id="theirVideo" style="width:300px;height:400px;display:inline;" autoplay muted></video>
+    </div>
   </div>
-  <output class="row center-block panel" id="list">
-    <ul class="list-group" id="file_list"></ul>
-  </output>
-  <button onclick="WebRTCChat.initVideo();">Start Video</button>
-  <video id="myVideo" style="width:300px;height:400px;display:inline;" autoplay muted></video>
-  <video id="theirVideo" style="width:300px;height:400px;display:inline;" autoplay muted></video>
 </div>
 
 <!--Modals for connecting-->
@@ -123,36 +152,45 @@
 <div class="modal" id="createOrJoin" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="title4" aria-hidden="true">
   <div class="modal-header"><h3 id="title4">Create or join a room?</h3></div>
   <div class="modal-body">
-    <label>Room Name: <input id="roomName" placeholder="Chat Room"></input></label>
+    <label>Your Name: <input id="userName" placeholder="anonymous"></input></label>
     <label>Send typing notifications:                  <input style="margin:0px;" id="sendTyping" type="checkbox" checked="true"/></label><br>
-    <button class="btn btn-primary" id="createBtn" data-dismiss="modal" aria-hidden="true">Create a New Chat</button>
-    <button class="btn" style="text-align:right;" id="joinBtn" data-dismiss="modal" aria-hidden="true">Join an existing chat</button>
+
+    <div style="width: 50%; float: right">
+      I want to create a chat offer:<br/>
+      <label>Room Name: <input id="roomName" placeholder="Chat Room"></input></label>
+      <button class="btn btn" id="createBtn" data-dismiss="modal" aria-hidden="true">Create a New Chat</button>
+    </div>
+    <div style="width: 50%;">
+      I have a chat offer from someone:<br/><br/>
+      <button class="btn btn-success" style="text-align:right;" id="joinBtn" data-dismiss="modal" aria-hidden="true">Join an existing chat</button>
+    </div>
+
   </div>
   <div class="modal-footer">
-    
+
   </div>
 </div>
 
-<script src="js/openpgp.js"></script>
 <script src="js/serverless-webrtc.js"></script>
 <script src="js/file-transfer.js"></script>
 <script type="text/javascript">
 window.WebRTCChat = new WebRTCChat();
 
-navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
-var video = document.getElementById('myVideo');
+function askForVideo() {
+    navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+    var video = document.getElementById('myVideo');
 
-navigator.getUserMedia({
-    audio: false, 
-    video: true
-}, function (stream) {
-  if (window.URL) video.src = window.URL.createObjectURL(stream);
-  else video.src = stream;
-  window.myStream = stream;
-}, function (error){
-  console.log('navigator.getUserMedia error: ', error);
-});
-
+    navigator.getUserMedia({
+        audio: false,
+        video: true
+    }, function (stream) {
+      if (window.URL) video.src = window.URL.createObjectURL(stream);
+      else video.src = stream;
+      window.myStream = stream;
+    }, function (error){
+      console.log('navigator.getUserMedia error: ', error);
+    });
+}
 
 /* DOM INTERACTION CODE */
 
@@ -168,8 +206,19 @@ function appendFiles(files) {
 }
 
 function handleDragOver(evt) {evt.stopPropagation();evt.preventDefault();evt.dataTransfer.dropEffect = 'copy';$('#drop_zone').addClass('active');}
-function handleChooseFiles(evt) {appendFiles(evt.target.files);}
-function handleDropFiles(evt)   {evt.stopPropagation();evt.preventDefault();$('#drop_zone').removeClass('active');appendFiles(evt.dataTransfer.files); return false;}
+function handleChooseFiles(evt) {
+  $('#drop_zone').removeClass('active');
+  appendFiles(evt.target.files);
+  window.WebRTCChat.sendFile(event.target.files);
+}
+function handleDropFiles(evt)   {
+  evt.stopPropagation();
+  evt.preventDefault();
+  $('#drop_zone').removeClass('active');
+  appendFiles(evt.dataTransfer.files);
+  window.WebRTCChat.sendFile(event.dataTransfer.files);
+  return false;
+}
 
 $('#files').on('change', handleChooseFiles);
 
@@ -273,6 +322,14 @@ $('#messageTextBox').keydown(function() {
         }, 1000);
     }
 });
+
+if (window.location.protocol == 'file:') {
+  document.getElementById('videoSection').innerHTML = '\
+  <h4>Audio &amp; Video</h4>\
+  <div class="alert alert-warning" style="width: 80%; margin-top: 23px">\
+      Audio &amp; video does not work when accessed via file://\
+  </div>'
+}
 </script>
 </body>
 </html>
