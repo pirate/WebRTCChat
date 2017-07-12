@@ -183,6 +183,12 @@ function WebRTCChat(cfg, con, sendTyping) {
             video.src = stream;
           window.myStream = stream;
           self.activeConnection.addStream(window.myStream);
+            self.activeChannel.send(JSON.stringify({
+                message: "Started sharing video."
+            }));
+            self.writeToChatLog(
+                "Started sharing video.",
+                "text-success sent insecure", false);
         }, function (error){
           console.log('navigator.getUserMedia error: ', error);
         });
