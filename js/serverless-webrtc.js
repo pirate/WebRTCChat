@@ -225,7 +225,7 @@ function WebRTCChat(cfg, con, sendTyping) {
         var downloadLink = downloadsAnchor.innerHTML += (
             '<li>'
             + 'Download: <a href="#" download="' + data.name + '" id="recvd-' + self.numReceivedFiles + '">' + data.name + '</a>'
-            + " (" + data.size + " bytes)"
+            + " (" + (data.size/1024).toLocaleString() + " kilobytes)"
             + '</li>'
         )
         self.receivedFiles[data.name] = data;
@@ -247,7 +247,7 @@ function WebRTCChat(cfg, con, sendTyping) {
 
         // we are assuming that our signaling protocol told
         // about the expected file size (and name, hash, etc).
-        var received = new window.Blob(self.receiveBuffer);
+        var received = new Blob(self.receiveBuffer, {type: self.incomingFile.type});
         self.receiveBuffer = [];
 
         var url = URL.createObjectURL(received);
@@ -260,8 +260,12 @@ function WebRTCChat(cfg, con, sendTyping) {
             self.bitrateMax = bitrate;
         }
 
-        bitrateDiv.innerHTML = '<strong>Bitrate:</strong> ' +
-            bitrate + ' kbits/sec (max: ' + self.bitrateMax + ' kbits/sec)';
+        bitrateDiv.innerHTML = (
+            self.receivedSize + '/' + self.incomingFile.size
+            + '  <strong>Bitrate:</strong> '
+            + bitrate + ' kbits/sec'
+            + ' (max: ' + self.bitrateMax + ' kbits/sec)'
+        );
 
         if (self.receivedSize >= self.incomingFile.size) {
             self.writeToChatLog(
@@ -286,6 +290,7 @@ function WebRTCChat(cfg, con, sendTyping) {
             file: true,
             name: file.name,
             size: file.size,
+            type: file.type,
         }));
         self.writeToChatLog("Sending " + file.name, "text-success sent insecure", false);
 
