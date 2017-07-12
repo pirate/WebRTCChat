@@ -5,6 +5,7 @@ var sendProgress = document.getElementById('sendProgress')
 var bitrateDiv = document.getElementById('bitrate')
 var statusMessage = document.getElementById('status')
 var downloadsAnchor = document.getElementById('downloads')
+var theirVideo = document.getElementById('theirVideo')
 
 function WebRTCChat(cfg, con, sendTyping) {
     var self = this;
@@ -86,7 +87,7 @@ function WebRTCChat(cfg, con, sendTyping) {
         conn.oniceconnectionstatechange     = function (state) {console.info('Signaling ICE connection state change: ', state); if (self.activeConnection.iceConnectionState == "disconnected") self.writeToChatLog("Chat partner disconnected.", "text-warning alert-error");}
         conn.onicegatheringstatechange      = function (state) {console.info('Signaling ICE setup state change: ', state);}
         conn.onaddstream = function (event) {
-            var video = document.getElementById('theirVideo');
+            var video = theirVideo;
             if (window.URL)
                 video.src = window.URL.createObjectURL(event.stream);
             else
