@@ -1,4 +1,4 @@
-# Serverless WebRTCChat [![Twitter URL](https://img.shields.io/twitter/url/http/shields.io.svg?style=social)](https://twitter.com/thesquashSH)
+# Serverless WebRTC Chat [![Twitter URL](https://img.shields.io/twitter/url/http/shields.io.svg?style=social)](https://twitter.com/thesquashSH)
 
 Click here to [**Chat Now**](https://sweeting.me/chat).
 
