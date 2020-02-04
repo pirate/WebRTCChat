@@ -1,6 +1,6 @@
 # Serverless WebRTC Chat [![Twitter URL](https://img.shields.io/twitter/url/http/shields.io.svg?style=social)](https://twitter.com/thesquashSH)
 
-Click here to [**Chat Now**](https://sweeting.me/chat).
+Click here to [**Chat Now**](http://pirate.github.io/WebRTCChat/).
 
 Pure Browser To Browser Chat, (STUN or ICE Servers optional, it should work without them if don't have a super strict NAT).
 
